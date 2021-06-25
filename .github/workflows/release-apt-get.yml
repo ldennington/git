@@ -18,7 +18,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 'Download Repo Client'
+      - name: "Download Repo Client"
         env:
           AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION }}
         run: |
@@ -26,7 +26,6 @@ jobs:
 
       - name: "Install Repo Client"
         run: |
-          sudo apt-get install python3-adal --yes
           sudo dpkg -i repoclient.deb
           rm repoclient.deb
 
@@ -40,19 +39,16 @@ jobs:
             for (const key of ['AZURE_AAD_ID', 'AAD_CLIENT_SECRET']) {
               if (!process.env[key]) throw new Error(`Required env var ${key} is missing!`)
             }
-
             const config = {
               AADResource: 'https://microsoft.onmicrosoft.com/945999e9-da09-4b5b-878f-b66c414602c0',
               AADTenant: '72f988bf-86f1-41af-91ab-2d7cd011db47',
               AADAuthorityUrl: 'https://login.microsoftonline.com',
               server: 'azure-apt-cat.cloudapp.net',
               port: '443',
-
               AADClientId: process.env.AZURE_AAD_ID,
               AADClientSecret: process.env.AAD_CLIENT_SECRET,
               repositoryId: ''
             }
-
             const fs = require('fs')
             fs.writeFileSync('config.json', JSON.stringify(config, null, 2))
 
@@ -73,7 +69,6 @@ jobs:
             if (assets.length !== 1) {
               throw new Error(`Unexpected number of .deb assets: ${assets.length}`)
             }
-
             const fs = require('fs')
             const buffer = await github.repos.getReleaseAsset({
                 headers: {
