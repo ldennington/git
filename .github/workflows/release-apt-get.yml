@@ -1,4 +1,4 @@
-name: "release-test"
+name: "release-apt-get"
 on:
   push:
   workflow_dispatch:
@@ -25,14 +25,37 @@ jobs:
           az storage blob download --subscription  "$AZ_SUB" --account-name gitcitoolstore -c tools -n azure-repoapi-client_2.0.1_amd64.deb -f repoclient.deb --auth-mode login
 
       - name: "Install Repo Client"
-        env:
-          AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
-          AAD_CLIENT_SECRET: ${{ secrets.AAD_CLIENT_SECRET }}
         run: |
           sudo apt-get install python3-adal --yes
           sudo dpkg -i repoclient.deb
           rm repoclient.deb
-      
+
+      - name: "Configure Repo Client"
+        uses: actions/github-script@v3
+                env:
+          AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
+          AAD_CLIENT_SECRET: ${{ secrets.AAD_CLIENT_SECRET }}
+        with:
+          script: |
+            for (const key of ['AZURE_AAD_ID', 'AAD_CLIENT_SECRET']) {
+              if (!process.env[key]) throw new Error(`Required env var ${key} is missing!`)
+            }
+
+            const config = {
+              AADResource: 'https://microsoft.onmicrosoft.com/945999e9-da09-4b5b-878f-b66c414602c0',
+              AADTenant: '72f988bf-86f1-41af-91ab-2d7cd011db47',
+              AADAuthorityUrl: 'https://login.microsoftonline.com',
+              server: 'azure-apt-cat.cloudapp.net',
+              port: '443',
+
+              AADClientId: process.env.AZURE_AAD_ID,
+              AADClientSecret: process.env.AAD_CLIENT_SECRET,
+              repositoryId: ''
+            }
+
+            const fs = require('fs')
+            fs.writeFileSync('config.json', JSON.stringify(config, null, 2))
+
       - name: "Get Release Asset"
         id: get-asset
         env:
@@ -42,7 +65,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const { data } = await github.repos.getRelease({
-                owner: 'microsoft', // context.repo.owner,
+                owner: context.repo.owner,
                 repo: context.repo.repo,
                 release_id: process.env.RELEASE || 'latest'
               })
@@ -50,13 +73,13 @@ jobs:
             if (assets.length !== 1) {
               throw new Error(`Unexpected number of .deb assets: ${assets.length}`)
             }
-            
+
             const fs = require('fs')
             const buffer = await github.repos.getReleaseAsset({
                 headers: {
                   accept: 'application/octet-stream'
                 },
-                owner: 'microsoft', // context.repo.owner,
+                owner: context.repo.owner,
                 repo: context.repo.repo,
                 asset_id: assets[0].id
               })
