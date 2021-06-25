@@ -32,7 +32,7 @@ jobs:
 
       - name: "Configure Repo Client"
         uses: actions/github-script@v3
-          env:
+        env:
           AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
           AAD_CLIENT_SECRET: ${{ secrets.AAD_CLIENT_SECRET }}
         with:
