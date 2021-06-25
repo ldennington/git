@@ -1,6 +1,8 @@
 name: "release-apt-get"
 on:
-  push:
+  release:
+    types: [released]
+
   workflow_dispatch:
     inputs:
       release:
@@ -23,11 +25,6 @@ jobs:
           AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION }}
         run: |
           az storage blob download --subscription  "$AZ_SUB" --account-name gitcitoolstore -c tools -n azure-repoapi-client_2.0.1_amd64.deb -f repoclient.deb --auth-mode login
-
-      - name: "Install Repo Client"
-        run: |
-          sudo dpkg -i repoclient.deb
-          rm repoclient.deb
 
       - name: "Configure Repo Client"
         uses: actions/github-script@v3
@@ -61,7 +58,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const { data } = await github.repos.getRelease({
-                owner: 'microsoft',
+                owner: context.repo.owner,
                 repo: context.repo.repo,
                 release_id: process.env.RELEASE || 'latest'
               })
@@ -74,7 +71,7 @@ jobs:
                 headers: {
                   accept: 'application/octet-stream'
                 },
-                owner: 'microsoft',
+                owner: context.repo.owner,
                 repo: context.repo.repo,
                 asset_id: assets[0].id
               })
