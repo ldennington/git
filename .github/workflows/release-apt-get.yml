@@ -56,12 +56,18 @@ jobs:
             if (assets.length !== 1) {
               throw new Error(`Unexpected number of .deb assets: ${assets.length}`)
             }
-            await github.repos.getReleaseAsset({
-                accept: 'application/octet-stream',
+            
+            const fs = require('fs')
+            const buffer = await github.repos.getReleaseAsset({
+                headers: {
+                  accept: 'application/octet-stream'
+                },
                 owner: 'microsoft', // context.repo.owner,
                 repo: context.repo.repo,
                 asset_id: assets[0].id
               })
+            console.log(buffer)
+            fs.writeFileSync(assets[0].name, Buffer.from(buffer.data))
             core.setOutput('name', assets[0].name)
 
       - name: "Publish to apt feed"
