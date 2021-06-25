@@ -1,6 +1,6 @@
-name: "release-apt-get"
+name: "release-test"
 on:
-  push
+  push:
   workflow_dispatch:
     inputs:
       release:
