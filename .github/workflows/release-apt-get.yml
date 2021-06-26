@@ -56,7 +56,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const { data } = await github.repos.getRelease({
-                owner: context.repo.owner,
+                owner: 'microsoft',
                 repo: context.repo.repo,
                 release_id: process.env.RELEASE || 'latest'
               })
@@ -69,7 +69,7 @@ jobs:
                 headers: {
                   accept: 'application/octet-stream'
                 },
-                owner: context.repo.owner,
+                owner: 'microsoft',
                 repo: context.repo.repo,
                 asset_id: assets[0].id
               })
