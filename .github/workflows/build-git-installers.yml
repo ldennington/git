@@ -26,6 +26,6 @@ jobs:
           # Add 'ArchitecturesAllowed' and 'LicenseFile' after 'AppVersion'
           sed -i -e '/^AppVersion=.*/a\
           ArchitecturesAllowed=x64 \
-          LicenseFile={#SourcePath}\\..\\COPYING \
+          LicenseFile={#SourcePath}\\..\\COPYING
           ' $b/installer/install.iss
           cat $b/installer/install.iss
