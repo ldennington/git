@@ -226,7 +226,7 @@ jobs:
           # Add 'ArchitecturesAllowed' and 'LicenseFile' after 'AppVersion'
           sed -i -e '/^AppVersion=.*/a\
           ArchitecturesAllowed=x64\
-          LicenseFile={#SourcePath}\\..\\COPYING
+          LicenseFile={#SourcePath}\\..\\LICENSE.txt
           ' $b/installer/install.iss
       - name: Let the installer configure Visual Studio to use the installed Git
         shell: bash
