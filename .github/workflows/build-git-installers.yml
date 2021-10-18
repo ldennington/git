@@ -187,9 +187,7 @@ jobs:
         run: |
           set -x
 
-          b=/usr/src/build-extra &&
-
-          filename=$b/git-update-git-for-windows.config
+          filename=git-update-git-for-windows.config
           tr % '\t' >$filename <<-\EOF &&
           [update]
           %fromFork = microsoft/git
