@@ -187,20 +187,18 @@ jobs:
         run: |
           set -x
 
-          b=/usr/src/build-extra &&
-
-          filename=$b/git-update-git-for-windows.config
+          filename=C:\\git-sdk-64-build-installers\\usr\\src\\build-extra\\git-update-git-for-windows.config
           tr % '\t' >$filename <<-\EOF &&
           [update]
           %fromFork = microsoft/git
           EOF
 
           sed -i -e '/^#include "file-list.iss"/a\
-          Source: {#SourcePath}\\..\\'$filename'; DestDir: {app}\\mingw64\\bin; Flags: replacesameversion; AfterInstall: DeleteFromVirtualStore' \
+          Source: C:\\git-sdk-64-build-installers\\usr\\src\\build-extra\\git-update-git-for-windows.config; DestDir: {app}\\mingw64\\bin; Flags: replacesameversion; AfterInstall: DeleteFromVirtualStore' \
             -e '/^Type: dirifempty; Name: {app}\\{#MINGW_BITNESS}$/i\
           Type: files; Name: {app}\\{#MINGW_BITNESS}\\bin\\git-update-git-for-windows.config\
           Type: dirifempty; Name: {app}\\{#MINGW_BITNESS}\\bin' \
-            $b/installer/install.iss
+            /usr/src/build-extra/installer/install.iss
       - name: Set alerts to continue until upgrade is taken
         shell: bash
         run: |
@@ -301,6 +299,11 @@ jobs:
             git signtool artifacts/PortableGit-*.exe
           fi &&
           openssl dgst -sha256 artifacts/${{matrix.artifact.fileprefix}}-*.exe | sed "s/.* //" >artifacts/sha-256.txt
+      - name: action-tmate
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
       - name: Publish ${{matrix.artifact.name}}-x86_64
         uses: actions/upload-artifact@v2
         with:
