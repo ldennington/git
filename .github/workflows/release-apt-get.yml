@@ -1,7 +1,5 @@
 name: "release-apt-get"
-on:
-  release:
-    types: [released]
+on: push
 
   workflow_dispatch:
     inputs:
