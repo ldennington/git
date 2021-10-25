@@ -159,7 +159,7 @@ To upgrade, you will need to repeat these steps to reinstall.
 though the package may appear to install successfully, `microsoft/
 git` will not function as expected. If you are running Ubuntu 18.04 or
 older, please follow the install from source instructions below
-instead of installing the debian package. 
+instead of installing the debian package.
 
 ### Other distributions
 
