@@ -451,8 +451,9 @@ test_expect_success 'blame with pathspec inside sparse definition' '
 	done
 '
 
-# Blame does not support blaming files outside of the sparse
-# definition, so we verify this scenario.
+# NEEDSWORK: This test documents the current behavior, but this could
+# change in the future if we decide to support blaming files outside 
+# the sparse definition.
 test_expect_success 'blame with pathspec outside sparse definition' '
 	init_repos &&
 	test_sparse_match git sparse-checkout set &&
