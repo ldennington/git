@@ -3976,9 +3976,6 @@ int cmd_pack_objects(int argc, const char **argv, const char *prefix)
 	read_replace_refs = 0;
 
 	sparse = git_env_bool("GIT_TEST_PACK_SPARSE", -1);
-	prepare_repo_settings(the_repository);
-	if (sparse < 0)
-		sparse = the_repository->settings.pack_use_sparse;
 
 	reset_pack_idx_option(&pack_idx_opts);
 	git_config(git_pack_config, NULL);
@@ -3988,6 +3985,10 @@ int cmd_pack_objects(int argc, const char **argv, const char *prefix)
 	progress = isatty(2);
 	argc = parse_options(argc, argv, prefix, pack_objects_options,
 			     pack_usage, 0);
+	
+	prepare_repo_settings(the_repository);
+	if (sparse < 0)
+		sparse = the_repository->settings.pack_use_sparse;
 
 	if (argc) {
 		base_name = argv[0];

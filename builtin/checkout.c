@@ -1588,9 +1588,6 @@ static int checkout_main(int argc, const char **argv, const char *prefix,
 
 	git_config(git_checkout_config, opts);
 
-	prepare_repo_settings(the_repository);
-	the_repository->settings.command_requires_full_index = 0;
-
 	opts->track = BRANCH_TRACK_UNSPECIFIED;
 
 	if (!opts->accept_pathspec && !opts->accept_ref)
@@ -1600,6 +1597,9 @@ static int checkout_main(int argc, const char **argv, const char *prefix,
 
 	argc = parse_options(argc, argv, prefix, options,
 			     usagestr, parseopt_flags);
+
+	prepare_repo_settings(the_repository);
+	the_repository->settings.command_requires_full_index = 0;
 
 	if (opts->show_progress < 0) {
 		if (opts->quiet)
