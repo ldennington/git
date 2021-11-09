@@ -832,6 +832,8 @@ test_expect_success 'sparse-index is not expanded: merge conflict in cone' '
 	)
 '
 
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HEAD
+================================
 test_expect_success 'sparse index is not expanded: diff' '
 	init_repos &&
 
@@ -878,6 +880,19 @@ test_expect_success 'sparse index is not expanded: diff' '
 	ensure_not_expanded diff --cached
 '
 
+test_expect_success 'sparse index is not expanded: blame' '
+	init_repos &&
+
+	for file in a \
+			deep/a \
+			deep/deeper1/a \
+			deep/deeper1/deepest/a
+	do
+		ensure_not_expanded blame $file
+	done
+'
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> a03b0fde84 (diff: replace --staged with --cached in t1092 tests)
 # NEEDSWORK: a sparse-checkout behaves differently from a full checkout
 # in this scenario, but it shouldn't.
 test_expect_success 'reset mixed and checkout orphan' '
