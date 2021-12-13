@@ -21,8 +21,8 @@ jobs:
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
 
           # View Command
-          Write-Host ".\wingetcreate.exe update Microsoft.Git -u $asset.browser_download_url -v $version -o manifests"
+          Write-Host .\wingetcreate.exe update Microsoft.Git -u $asset.browser_download_url -v $version -o manifests -t "${{ secrets.WINGET_TOKEN }}" -s
           
           # Run Command
-          .\wingetcreate.exe update Microsoft.Git -u $asset.browser_download_url -v $version -o manifests -t "${{ secrets.WINGET_TOKEN }}"
+          .\wingetcreate.exe update Microsoft.Git -u $asset.browser_download_url -v $version -o manifests -t "${{ secrets.WINGET_TOKEN }}" -s
         shell: powershell
