@@ -4,7 +4,8 @@ on:
   push:
     tags:
       - 'v[0-9]*vfs*' # matches "v<number><any characters>vfs<any characters>"
-
+    branches:
+      - 'fix-broken-workflow'
 env:
   INCLUDE_SCALAR: 1
 
