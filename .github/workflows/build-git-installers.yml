@@ -36,13 +36,10 @@ jobs:
             echo "::error::$*" >&2
             exit 1
           }
-
           # `actions/checkout` only downloads the peeled tag (i.e. the commit)
           git fetch origin +$GITHUB_REF:$GITHUB_REF
-
           # Verify that the tag is annotated
           test $(git cat-file -t "$GITHUB_REF") == "tag" || die "Tag ${{ steps.tag.outputs.name }} is not annotated"
-
           # Verify tag follows rules in GIT-VERSION-GEN (i.e., matches the specified "DEF_VER" in
           # GIT-VERSION-FILE) and matches tag determined from trigger
           make GIT-VERSION-FILE
@@ -69,7 +66,7 @@ jobs:
           echo "PACKAGER=$USER_NAME <$USER_EMAIL>" >>$GITHUB_ENV
       - uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          flavor: full
+          flavor: build-installers
       - name: Clone build-extra
         shell: bash
         run: |
@@ -79,7 +76,6 @@ jobs:
         run: |
           # Since we cannot directly clone a specified tag (as we would a branch with `git clone -b <branch name>`),
           # this clone has to be done manually (via init->fetch->reset).
-
           tag_name="${{ needs.prereqs.outputs.tag_name }}" &&
           git -c init.defaultBranch=main init &&
           git remote add -f origin https://github.com/git-for-windows/git &&
@@ -103,7 +99,6 @@ jobs:
         run: |
           # This section ensures that the identity for the GPG key matches the git user identity, otherwise
           # signing will fail
-
           echo '${{secrets.PRIVGPGKEY}}' | tr % '\n' | gpg $GPG_OPTIONS --import &&
           info="$(gpg --list-keys --with-colons "${GPGKEY%% *}" | cut -d : -f 1,10 | sed -n '/^uid/{s|uid:||p;q}')" &&
           git config --global user.name "${info% <*}" &&
@@ -116,15 +111,11 @@ jobs:
         shell: bash
         run: |
           set -x
-
           # Make sure that there is a `/usr/bin/git` that can be used by `makepkg-mingw`
           printf '#!/bin/sh\n\nexec /mingw64/bin/git.exe "$@"\n' >/usr/bin/git &&
-
           # Restrict `PATH` to MSYS2 and to Visual Studio (to let `cv2pdb` find the relevant DLLs)
           PATH="/mingw64/bin:/usr/bin:/C/Program Files (x86)/Microsoft Visual Studio 14.0/VC/bin/amd64:/C/Windows/system32"
-
           type -p mspdb140.dll || exit 1
-
           sh -x /usr/src/build-extra/please.sh build-mingw-w64-git --only-64-bit --build-src-pkg -o artifacts HEAD &&
           if test -n "$GPGKEY"
           then
@@ -133,7 +124,6 @@ jobs:
               /usr/src/build-extra/gnupg-with-gpgkey.sh --detach-sign --no-armor $tar
             done
           fi &&
-
           b=$PWD/artifacts &&
           version=${{ needs.prereqs.outputs.tag_name }} &&
           (cd /usr/src/MINGW-packages/mingw-w64-git &&
@@ -166,7 +156,7 @@ jobs:
           path: pkg-x86_64
       - uses: git-for-windows/setup-git-for-windows-sdk@v1
         with:
-          flavor: full
+          flavor: build-installers
       - name: Clone build-extra
         shell: bash
         run: |
@@ -186,15 +176,12 @@ jobs:
         shell: bash
         run: |
           set -x
-
           b=/usr/src/build-extra &&
-
           filename=$b/git-update-git-for-windows.config
           tr % '\t' >$filename <<-\EOF &&
           [update]
           %fromFork = microsoft/git
           EOF
-
           sed -i -e '/^#include "file-list.iss"/a\
           Source: {#SourcePath}\\..\\git-update-git-for-windows.config; DestDir: {app}\\mingw64\\bin; Flags: replacesameversion; AfterInstall: DeleteFromVirtualStore' \
             -e '/^Type: dirifempty; Name: {app}\\{#MINGW_BITNESS}$/i\
@@ -205,9 +192,7 @@ jobs:
         shell: bash
         run: |
           set -x
-
           b=/mingw64/bin &&
-
           sed -i -e '6 a use_recently_seen=no' \
             $b/git-update-git-for-windows
       - name: Set the installer Publisher to the Git Fundamentals team
@@ -219,17 +204,13 @@ jobs:
         shell: bash
         run: |
           set -x
-
           b=/usr/src/build-extra &&
-
           sed -i -e '/^ *InstallAutoUpdater();$/a\
               CustomPostInstall();' \
             -e '/^ *UninstallAutoUpdater();$/a\
               CustomPostUninstall();' \
             $b/installer/install.iss &&
-
           cat >>$b/installer/helpers.inc.iss <<\EOF
-
           procedure CustomPostInstall();
           begin
               if not RegWriteStringValue(HKEY_CURRENT_USER,'Software\Microsoft\VSCommon\15.0\TeamFoundation\GitSourceControl','GitPath',ExpandConstant('{app}')) or
@@ -240,7 +221,6 @@ jobs:
                 not RegWriteStringValue(HKEY_CURRENT_USER,'Software\Microsoft\VSCommon\20.0\TeamFoundation\GitSourceControl','GitPath',ExpandConstant('{app}')) then
                   LogError('Could not register TeamFoundation\GitSourceControl');
           end;
-
           procedure CustomPostUninstall();
           begin
               if not RegDeleteValue(HKEY_CURRENT_USER,'Software\Microsoft\VSCommon\15.0\TeamFoundation\GitSourceControl','GitPath') or
@@ -256,9 +236,7 @@ jobs:
         shell: bash
         run: |
           set -x
-
           b=/usr/src/build-extra &&
-
           sed -i -e "/ChosenOptions:=''/a\\
               if (ExpandConstant('{param:components|/}')='/') then begin\n\
                   WizardSelectComponents('autoupdate');\n\
@@ -270,19 +248,16 @@ jobs:
         shell: bash
         run: |
           set -x
-
           # Copy the PDB archive to the directory where `--include-pdbs` expects it
           b=/usr/src/build-extra &&
           mkdir -p $b/cached-source-packages &&
           cp pkg-x86_64/*-pdb* $b/cached-source-packages/ &&
-
           # Build the installer, embedding PDBs
           eval $b/please.sh make_installers_from_mingw_w64_git --include-pdbs \
               --version=${{ needs.prereqs.outputs.tag_version }} \
               -o artifacts --${{matrix.artifact.name}} \
               --pkg=pkg-x86_64/mingw-w64-x86_64-git-[0-9]*.tar.xz \
               --pkg=pkg-x86_64/mingw-w64-x86_64-git-doc-html-[0-9]*.tar.xz &&
-
           if test portable = '${{matrix.artifact.name}}' && test -n "$(git config alias.signtool)"
           then
             git signtool artifacts/PortableGit-*.exe
@@ -295,8 +270,9 @@ jobs:
           path: artifacts
   # End build Windows installers
 
-  # Build Mac OSX installers & upload artifacts
-  mac_artifacts:
+  # Build and sign Mac OSX installers & upload artifacts
+  osx_build:
+    name: Build macOS
     runs-on: macos-latest
     needs: prereqs
     env:
@@ -305,88 +281,263 @@ jobs:
       CFLAGS: -I/usr/local/opt/gettext/include
       # To make use of the catalogs...
       XML_CATALOG_FILES: /usr/local/etc/xml/catalog
-      # Enable a bit stricter compile flags
-      DEVELOPER: 1
-      # For the osx-installer build
-      OSX_VERSION: 10.15
-      V: 1
+      VERSION: "${{ needs.prereqs.outputs.tag_version }}"
     steps:
-      - name: Install git dependencies
-        run: |
-          set -x
-          brew install automake asciidoc xmlto
-          brew link --force gettext
-      - name: Clone git
-        uses: actions/checkout@v2
+      - name: Check out repository
+        uses: actions/checkout@v3
         with:
           path: 'git'
-      - name: Build GIT-VERSION-FILE and .tar.gz files
+
+      - name: Install Git dependencies
         run: |
           set -x
+          brew install automake asciidoc xmlto docbook
+          brew link --force gettext
+
+      - name: Build payload
+        run: |
+          # Configure the environment
+          set -x
           PATH=/usr/local/bin:$PATH
+          export CURL_LDFLAGS=$(curl-config --libs)
 
           # Write to "version" file to force match with trigger payload version
           echo "${{ needs.prereqs.outputs.tag_version }}" >>git/version
           make -C git -j$(sysctl -n hw.physicalcpu) GIT-VERSION-FILE dist dist-doc
-      - name: Clone installer repository
-        uses: actions/checkout@v2
-        with:
-          path: 'git_osx_installer'
-          repository: 'derrickstolee/git_osx_installer'
-      - name: Bundle .dmg
-        run: |
-          die () {
-              echo "$*" >&2
-              exit 1
-          }
 
+          export GIT_BUILT_FROM_COMMIT=$(gunzip -c git/git-$VERSION.tar.gz | git get-tar-commit-id) ||
+            die "Could not determine commit for build"
+          
+          # Extract tarballs
+          mkdir payload manpages
+          tar -xvf git/git-$VERSION.tar.gz -C payload
+          tar -xvf git/git-manpages-$VERSION.tar.gz -C manpages
+
+          # Lay out payload
+          make -C git/.github V=1 payload
+      
+      - name: Prepare artifacts for upload
+        run: |
+          # This step is necessary because we cannot use the $VERSION
+          # environment variable or the tag_version output from the prereqs
+          # job in the upload-artifact task.
+          mkdir -p build_artifacts
+          cp -R stage/git-intel-x86_64-$VERSION/ build_artifacts
+
+      - name: Upload macOS payload
+        uses: actions/upload-artifact@v3
+        with:
+          name: tmp.osx_build
+          path: |
+            build_artifacts
+
+  osx_artifacts_sign:
+    name: Sign macOS payload
+    # ESRP service requires signing to run on Windows
+    runs-on: windows-latest
+    needs: osx_build
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+      with:
+        path: 'git'
+
+    - name: Download unsigned build artifiacts
+      uses: actions/download-artifact@v3
+      with:
+        name: tmp.osx_build
+        path: build_artifacts
+    
+    - name: Zip unsigned build artifacts
+      shell: pwsh
+      run: |
+        Compress-Archive -Path build_artifacts build_artifacts/build_artifacts.zip
+        cd build_artifacts
+        Get-ChildItem -Exclude build_artifacts.zip | Remove-Item -Recurse -Force
+    
+    - uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Set up ESRP client
+      shell: pwsh
+      env:
+        AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
+        AUTH_CERT: ${{ secrets.AZURE_VAULT_AUTH_CERT_NAME }}
+        REQUEST_SIGNING_CERT: ${{ secrets.AZURE_VAULT_REQUEST_SIGNING_CERT_NAME }}
+      run: |
+        git\.github\scripts\set-up-esrp.ps1
+    
+    - name: Run ESRP client
+      shell: pwsh
+      env:
+        AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
+        # We temporarily need two AAD IDs, as we're using an SSL certificate associated
+        # with an older App Registration until we have the required hardware to approve
+        # the new certificate in SSL Admin.
+        AZURE_AAD_ID_SSL: ${{ secrets.AZURE_AAD_ID_SSL }}
+        APPLE_KEY_CODE: ${{ secrets.APPLE_KEY_CODE }}
+        APPLE_SIGNING_OP_CODE: ${{ secrets.APPLE_SIGNING_OPERATION_CODE }}
+      run: |
+        python git\.github\scripts\run-esrp-signing.py build_artifacts `
+         $env:APPLE_KEY_CODE $env:APPLE_SIGNING_OP_CODE `
+         --params 'Hardening' '--options=runtime'
+    
+    - name: Unzip signed build artifacts
+      shell: pwsh
+      run: |
+        Expand-Archive signed/build_artifacts.zip -DestinationPath signed
+        Remove-Item signed/build_artifacts.zip
+    
+    - name: Upload signed payload
+      uses: actions/upload-artifact@v3
+      with:
+        name: osx_artifacts_sign
+        path: |
+          signed
+
+  osx_pack:
+    name: Package macOS artifacts
+    runs-on: macos-latest
+    needs: [prereqs, osx_artifacts_sign]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          path: 'git'
+
+      - name: Download signed artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: osx_artifacts_sign
+
+      - name: Build macOS pkg
+        env:
+          VERSION: "${{ needs.prereqs.outputs.tag_version }}"
+        run: |
           # Configure the environment
           export CURL_LDFLAGS=$(curl-config --libs)
-          export VERSION="${{ needs.prereqs.outputs.tag_version }}"
-
-          dir=git_osx_installer/git-$VERSION
-          test ! -e $dir ||
-            rm $dir ||
-            die "Could not remove $dir"
-          ln -s .. $dir
-
-          mkdir -p git_osx_installer/build &&
-          cp git/git-$VERSION.tar.gz git/git-manpages-$VERSION.tar.gz git_osx_installer/build/ ||
-            die "Could not copy .tar.gz files"
-
-          GIT_BUILT_FROM_COMMIT=$(gunzip -c git/git-$VERSION.tar.gz | git get-tar-commit-id) ||
-            die "Could not determine commit for build"
-
-          # drop the -isysroot `GIT_SDK` hack
-          sed -i .bak -e 's/ -isysroot .(SDK_PATH)//' git_osx_installer/Makefile || die "Could not drop the -isysroot hack"
-
-          # make sure that .../usr/local/git/share/man/ exists
-          sed -i .bak -e 's/\(tar .*-C \)\(.*\/share\/man\)$/mkdir -p \2 \&\& &/' git_osx_installer/Makefile || die "Could not edit git_osx_installer/Makefile"
-          cat git_osx_installer/Makefile
-
-          make -C git_osx_installer vars
-
-          PATH=/usr/local/bin:/System/Library/Frameworks:$PATH \
-          make -C git_osx_installer \
-              OSX_VERSION=10.15 C_INCLUDE_PATH="$C_INCLUDE_PATH" V=1 \
-              build/intel-x86_64-catalina/git-$VERSION/osx-built-keychain ||
-            die "Build failed"
 
           PATH=/usr/local/bin:$PATH \
-          make -C git_osx_installer \
-              GIT_BUILT_FROM_COMMIT=$GIT_BUILT_FROM_COMMIT \
-              OSX_VERSION=10.15 C_INCLUDE_PATH="$C_INCLUDE_PATH" V=1 image ||
+          make -C git/.github V=1 pkg ||
             die "Build failed"
-
-          mkdir -p artifacts
-          mv git_osx_installer/*.dmg artifacts/
-          mv git_osx_installer/disk-image/*.pkg artifacts/
-      - name: Publish OSX installer
-        uses: actions/upload-artifact@v2
+        
+      - name: Upload unsigned pkg
+        uses: actions/upload-artifact@v3
         with:
-          name: osx-installer
-          path: artifacts
-  # End build Mac OSX installers
+          name: tmp.osx_pkg
+          path: |
+            git/.github/disk-image
+    
+  osx_pkg_sign:
+    name: Sign and notarize macOS package
+    # ESRP service requires signing to run on Windows
+    runs-on: windows-latest
+    needs: osx_pack
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+      with:
+          path: 'git'
+
+    - name: Download unsigned package
+      uses: actions/download-artifact@v3
+      with:
+        name: tmp.osx_pkg
+        path: pkg
+    
+    - name: Zip unsigned package
+      shell: pwsh
+      run: |
+        Compress-Archive -Path pkg/*.pkg pkg/msft-git-pkg.zip
+        cd pkg
+        Get-ChildItem -Exclude msft-git-pkg.zip | Remove-Item -Recurse -Force
+    
+    - uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Set up ESRP client
+      shell: pwsh
+      env:
+        AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
+        AUTH_CERT: ${{ secrets.AZURE_VAULT_AUTH_CERT_NAME }}
+        REQUEST_SIGNING_CERT: ${{ secrets.AZURE_VAULT_REQUEST_SIGNING_CERT_NAME }}
+      run: |
+        git\.github\scripts\set-up-esrp.ps1
+    
+    - name: Sign package
+      shell: pwsh
+      env:
+        AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
+        # We temporarily need two AAD IDs, as we're using an SSL certificate associated
+        # with an older App Registration until we have the required hardware to approve
+        # the new certificate in SSL Admin.
+        AZURE_AAD_ID_SSL: ${{ secrets.AZURE_AAD_ID_SSL }}
+        APPLE_KEY_CODE: ${{ secrets.APPLE_KEY_CODE }}
+        APPLE_SIGNING_OP_CODE: ${{ secrets.APPLE_SIGNING_OPERATION_CODE }}
+      run: |
+        python git\.github\scripts\run-esrp-signing.py pkg $env:APPLE_KEY_CODE $env:APPLE_SIGNING_OP_CODE
+    
+    - name: Unzip signed package
+      shell: pwsh
+      run: |
+        mkdir unsigned
+        Expand-Archive -LiteralPath signed\msft-git-pkg.zip -DestinationPath .\unsigned -Force
+        Remove-Item signed\msft-git-pkg.zip -Force
+    
+    - name: Notarize signed package
+      shell: pwsh
+      env:
+        AZURE_AAD_ID: ${{ secrets.AZURE_AAD_ID }}
+        # We temporarily need two AAD IDs, as we're using an SSL certificate associated
+        # with an older App Registration until we have the required hardware to approve
+        # the new certificate in SSL Admin.
+        AZURE_AAD_ID_SSL: ${{ secrets.AZURE_AAD_ID_SSL }}
+        APPLE_KEY_CODE: ${{ secrets.APPLE_KEY_CODE }}
+        APPLE_NOTARIZATION_OP_CODE: ${{ secrets.APPLE_NOTARIZATION_OPERATION_CODE }}
+      run: |
+        python git\.github\scripts\run-esrp-signing.py unsigned $env:APPLE_KEY_CODE `
+          $env:APPLE_NOTARIZATION_OP_CODE --params 'BundleId' 'com.microsoft.git'
+    
+    - name: Upload signed and notarized pkg
+      uses: actions/upload-artifact@v3
+      with:
+        name: osx_pkg_sign
+        path: |
+          signed
+
+  osx_dmg:
+    name: Build and publish macOS dmg
+    runs-on: macos-latest
+    needs: [prereqs, osx_pkg_sign]
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+      with:
+        path: 'git'
+
+    - name: Download signed package
+      uses: actions/download-artifact@v3
+      with:
+        name: osx_pkg_sign
+        path: disk-image
+
+    - name: Build macOS disk image
+      env:
+        VERSION: "${{ needs.prereqs.outputs.tag_version }}"
+      run: |
+        PATH=/usr/local/bin:$PATH \
+        make -C git/.github V=1 image || die "Build failed"
+
+    - name: Publish disk image
+      uses: actions/upload-artifact@v3
+      with:
+        name: osx_dmg
+        path: git/.github/*.dmg
+  # End build and sign Mac OSX installers
 
   # Build & sign Ubuntu package
   ubuntu_build:
@@ -396,7 +547,6 @@ jobs:
       - name: Install git dependencies
         run: |
           set -ex
-
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends gettext libcurl4-gnutls-dev libpcre3-dev asciidoc xmlto
       - name: Clone git
@@ -406,28 +556,21 @@ jobs:
       - name: Build and package .deb
         run: |
           set -ex
-
           die () {
               echo "$*" >&2
               exit 1
           }
-
           echo "${{ needs.prereqs.outputs.tag_version }}" >>git/version
           make -C git GIT-VERSION-FILE
-
           VERSION="${{ needs.prereqs.outputs.tag_version }}"
-
           ARCH="$(dpkg-architecture -q DEB_HOST_ARCH)"
           if test -z "$ARCH"; then
             die "Could not determine host architecture!"
           fi
-
           PKGNAME="microsoft-git_$VERSION"
           PKGDIR="$(dirname $(pwd))/$PKGNAME"
-
           rm -rf "$PKGDIR"
           mkdir -p "$PKGDIR"
-
           DESTDIR="$PKGDIR" make -C git -j5 V=1 DEVELOPER=1 \
             USE_LIBPCRE=1 \
             NO_CROSS_DIRECTORY_HARDLINKS=1 \
@@ -438,10 +581,8 @@ jobs:
             libexecdir=/usr/local/lib/git-core \
             htmldir=/usr/local/share/doc/git/html \
             install install-doc install-html
-
           cd ..
           mkdir "$PKGNAME/DEBIAN"
-
           # Based on https://packages.ubuntu.com/xenial/vcs/git
           cat >"$PKGNAME/DEBIAN/control" <<EOF
           Package: microsoft-git
@@ -454,9 +595,7 @@ jobs:
           Description: Git client built from the https://github.com/microsoft/git repository,
             specialized in supporting monorepo scenarios. Includes the Scalar CLI.
           EOF
-
           dpkg-deb --build "$PKGNAME"
-
           mkdir $GITHUB_WORKSPACE/artifacts
           mv "$PKGNAME.deb" $GITHUB_WORKSPACE/artifacts/
       - name: Publish unsigned .deb package
@@ -548,12 +687,10 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
-
             var releaseMetadata = {
               owner: context.repo.owner,
               repo: context.repo.repo
             };
-
             // Create the release
             var tagName = "${{ needs.prereqs.outputs.tag_name }}";
             var createdRelease = await github.repos.createRelease({
@@ -563,7 +700,6 @@ jobs:
               name: tagName
             });
             releaseMetadata.release_id = createdRelease.data.id;
-
             // Uploads contents of directory to the release created above
             async function uploadDirectoryToRelease(directory, includeExtensions=[]) {
               return fs.promises.readdir(directory)
@@ -584,15 +720,12 @@ jobs:
                   }))
                 );
             }
-
             await Promise.all([
               // Upload Windows artifacts
               uploadDirectoryToRelease('win-installer-x86_64', ['.exe']),
               uploadDirectoryToRelease('win-portable-x86_64', ['.exe']),
-
               // Upload Mac artifacts
               uploadDirectoryToRelease('osx-installer'),
-
               // Upload Ubuntu artifacts
               uploadDirectoryToRelease('deb-package')
             ]);
