@@ -51,7 +51,7 @@ $(BUILD_DIR)/git-$(VERSION)/osx-installed-bin: $(BUILD_DIR)/git-$(VERSION)/osx-b
 	# This is needed for Git-Gui, GitK
 	mkdir -p $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl
 	[ ! -f $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl/Error.pm ] && cp $(BUILD_DIR)/git-$(VERSION)/perl/private-Error.pm $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl/Error.pm || echo done
-	ruby scripts/symlink-git-hardlinks.rb $(DESTDIR)
+	ruby ../scripts/symlink-git-hardlinks.rb $(DESTDIR)
 	touch $@
 
 $(BUILD_DIR)/git-$(VERSION)/osx-installed-man: $(BUILD_DIR)/git-$(VERSION)/osx-installed-bin
