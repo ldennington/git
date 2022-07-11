@@ -20,6 +20,7 @@ GIT_PREFIX := $(PREFIX)/git
 BUILD_CODE := intel-$(ARCH_CODE)
 BUILD_DIR := $(GITHUB_WORKSPACE)/payload
 DESTDIR := $(PWD)/stage/git-$(BUILD_CODE)-$(VERSION)
+ARTIFACTDIR := build_artifacts
 SUBMAKE := $(MAKE) C_INCLUDE_PATH="$(C_INCLUDE_PATH)" CPLUS_INCLUDE_PATH="$(CPLUS_INCLUDE_PATH)" LD_LIBRARY_PATH="$(LD_LIBRARY_PATH)" TARGET_FLAGS="$(TARGET_FLAGS)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" NO_GETTEXT=1 NO_DARWIN_PORTS=1 prefix=$(GIT_PREFIX) GIT_BUILT_FROM_COMMIT="$(GIT_BUILT_FROM_COMMIT)" DESTDIR=$(DESTDIR)
 CORES := $(shell bash -c "sysctl hw.ncpu | awk '{print \$$2}'")
 
@@ -51,7 +52,6 @@ $(BUILD_DIR)/git-$(VERSION)/osx-installed-bin: $(BUILD_DIR)/git-$(VERSION)/osx-b
 	# This is needed for Git-Gui, GitK
 	mkdir -p $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl
 	[ ! -f $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl/Error.pm ] && cp $(BUILD_DIR)/git-$(VERSION)/perl/private-Error.pm $(DESTDIR)$(GIT_PREFIX)/lib/perl5/site_perl/Error.pm || echo done
-	ruby scripts/symlink-git-hardlinks.rb $(DESTDIR)
 	touch $@
 
 $(BUILD_DIR)/git-$(VERSION)/osx-installed-man: $(BUILD_DIR)/git-$(VERSION)/osx-installed-bin
@@ -73,9 +73,12 @@ $(BUILD_DIR)/git-$(VERSION)/osx-installed-assets: $(BUILD_DIR)/git-$(VERSION)/os
 	cat assets/etc/gitconfig.osxkeychain >> $(DESTDIR)$(GIT_PREFIX)/etc/gitconfig
 	cp assets/uninstall.sh $(DESTDIR)$(GIT_PREFIX)/uninstall.sh
 	sh -c "echo .DS_Store >> $(DESTDIR)$(GIT_PREFIX)/share/git-core/templates/info/exclude"
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cd $(DESTDIR)$(PREFIX)/bin; find ../git/bin -type f -exec ln -sf {} \;
-	for man in man1 man3 man5 man7; do mkdir -p $(DESTDIR)$(PREFIX)/share/man/$$man; (cd $(DESTDIR)$(PREFIX)/share/man/$$man; ln -sf ../../../git/share/man/$$man/* ./); done
+
+symlinks:
+	mkdir -p $(ARTIFACTDIR)$(PREFIX)/bin
+	cd $(ARTIFACTDIR)$(PREFIX)/bin; find ../git/bin -type f -exec ln -sf {} \;
+	for man in man1 man3 man5 man7; do mkdir -p $(ARTIFACTDIR)$(PREFIX)/share/man/$$man; (cd $(ARTIFACTDIR)$(PREFIX)/share/man/$$man; ln -sf ../../../git/share/man/$$man/* ./); done
+	ruby ../scripts/symlink-git-hardlinks.rb $(ARTIFACTDIR)
 	touch $@
 
 $(BUILD_DIR)/git-$(VERSION)/osx-installed: $(DESTDIR)$(GIT_PREFIX)/VERSION-$(VERSION)-$(BUILD_CODE) $(BUILD_DIR)/git-$(VERSION)/osx-installed-man $(BUILD_DIR)/git-$(VERSION)/osx-installed-assets $(BUILD_DIR)/git-$(VERSION)/osx-installed-subtree
@@ -98,12 +101,11 @@ disk-image/VERSION-$(VERSION)-$(ARCH_CODE):
 	mkdir disk-image
 	touch "$@"
 
-disk-image/git-$(VERSION)-$(BUILD_CODE).pkg: disk-image/VERSION-$(VERSION)-$(ARCH_CODE)
-	pkgbuild --identifier com.git.pkg --version $(VERSION) --root ../../build_artifacts$(PREFIX) --scripts scripts --install-location $(PREFIX) --component-plist ./assets/git-components.plist disk-image/git-$(VERSION)-$(BUILD_CODE).pkg
+disk-image/git-$(VERSION)-$(BUILD_CODE).pkg: disk-image/VERSION-$(VERSION)-$(ARCH_CODE) symlinks
+	pkgbuild --identifier com.git.pkg --version $(VERSION) --root $(ARTIFACTDIR)$(PREFIX) --scripts assets/scripts --install-location $(PREFIX) --component-plist ./assets/git-components.plist disk-image/git-$(VERSION)-$(BUILD_CODE).pkg
 
 git-%-$(BUILD_CODE).dmg:
-	rm -f git-$(VERSION)-$(BUILD_CODE)*.dmg
-	hdiutil create git-$(VERSION)-$(BUILD_CODE).uncompressed.dmg -fs HFS+ -srcfolder ../../../disk-image -volname "Git $(VERSION) Intel $(ARCH)" -ov
+	hdiutil create git-$(VERSION)-$(BUILD_CODE).uncompressed.dmg -fs HFS+ -srcfolder disk-image -volname "Git $(VERSION) Intel $(ARCH)" -ov
 	hdiutil convert -format UDZO -o $@ git-$(VERSION)-$(BUILD_CODE).uncompressed.dmg
 	rm -f git-$(VERSION)-$(BUILD_CODE).uncompressed.dmg
 
