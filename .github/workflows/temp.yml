@@ -1,0 +1,39 @@
+name: temp
+
+on:
+  push:
+
+jobs:
+  temp:
+    runs-on: macos-latest
+    steps:
+      - run: |
+          set -ex
+          cat > a1.c <<EOF
+          #include <stdio.h>
+
+          int main(int argc, char** argv) {
+            printf("Hello!");
+            return 0;
+          }
+          EOF
+
+          cc -Wall -o a1 a1.c
+          ls -la
+          
+          mkdir a1_art
+          mv a1 a1_art
+          tar -zcvf build_artifacts.tar.gz a1_art
+      
+      - uses: actions/upload-artifact@v3
+        with:
+          name: temp
+          path: build_artifacts.tar.gz
+      
+      - uses: actions/download-artifact@v3
+        with:
+          name: temp
+          path: build_artifacts_2.tar.gz
+      
+      - run: |
+          ls -laR
