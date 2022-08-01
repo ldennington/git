@@ -1,9 +1,7 @@
 name: build-git-installers
 
 on:
-  push:
-    tags:
-      - 'v[0-9]*vfs*' # matches "v<number><any characters>vfs<any characters>"
+  release:
 
 jobs:
   # Check prerequisites for the workflow
@@ -27,23 +25,6 @@ jobs:
         id: deb
       - name: Clone git
         uses: actions/checkout@v2
-      - name: Validate the tag identified with trigger
-        run: |
-          die () {
-            echo "::error::$*" >&2
-            exit 1
-          }
-
-          # `actions/checkout` only downloads the peeled tag (i.e. the commit)
-          git fetch origin +$GITHUB_REF:$GITHUB_REF
-
-          # Verify that the tag is annotated
-          test $(git cat-file -t "$GITHUB_REF") == "tag" || die "Tag ${{ steps.tag.outputs.name }} is not annotated"
-
-          # Verify tag follows rules in GIT-VERSION-GEN (i.e., matches the specified "DEF_VER" in
-          # GIT-VERSION-FILE) and matches tag determined from trigger
-          make GIT-VERSION-FILE
-          test "${{ steps.tag.outputs.version }}" == "$(sed -n 's/^GIT_VERSION = //p'< GIT-VERSION-FILE)" || die "GIT-VERSION-FILE tag does not match ${{ steps.tag.outputs.name }}"
   # End check prerequisites for the workflow
 
   # Build Windows installers (x86_64 installer & portable)
@@ -696,98 +677,48 @@ jobs:
           path: signed
   # End build & sign Ubuntu package
 
-  create-github-release:
-    runs-on: ubuntu-latest
+  validate-installers:
+    name: Validate installers
+    strategy:
+      matrix:
+        component:
+          - os: ubuntu-latest
+            artifact: deb-package-signed
+          - os: macos-latest
+            artifact: osx-signed-pkg
+          - os: windows-latest
+            artifact: win-installer-x86_64
+    runs-on: ${{ matrix.component.os }}
     needs: [prereqs, windows_artifacts, osx_publish_dmg, ubuntu_sign-artifacts]
-    if: |
-      success() ||
-        (needs.ubuntu_sign-artifacts.result == 'skipped' &&
-        needs.osx_publish_dmg.result == 'success' &&
-        needs.windows_artifacts.result == 'success')
     steps:
-      - name: Download Windows portable installer
+      - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          name: win-portable-x86_64
-          path: win-portable-x86_64
-      - name: Download Windows x86_64 installer
-        uses: actions/download-artifact@v2
-        with:
-          name: win-installer-x86_64
-          path: win-installer-x86_64
-      - name: Download Mac dmg
-        uses: actions/download-artifact@v2
-        with:
-          name: osx-dmg
-          path: osx-dmg
-      - name: Download Mac pkg
-        uses: actions/download-artifact@v2
-        with:
-          name: osx-signed-pkg
-          path: osx-pkg
-      - name: Download Ubuntu package (signed)
-        if: needs.prereqs.outputs.deb_signable == 'true'
-        uses: actions/download-artifact@v2
-        with:
-          name: deb-package-signed
-          path: deb-package
-      - name: Download Ubuntu package (unsigned)
-        if: needs.prereqs.outputs.deb_signable != 'true'
-        uses: actions/download-artifact@v2
-        with:
-          name: deb-package-unsigned
-          path: deb-package
-      - uses: actions/github-script@v4
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
+          name: ${{ matrix.component.artifact }}
 
-            var releaseMetadata = {
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            };
+      - name: Install Windows
+        if: contains(matrix.component.os, 'windows')
+        shell: sh
+        run: |
+          exePaths=$(find ./*.exe) &&
+          start "" "$path" /WAIT //VERYSILENT //NORESTART
 
-            // Create the release
-            var tagName = "${{ needs.prereqs.outputs.tag_name }}";
-            var createdRelease = await github.repos.createRelease({
-              ...releaseMetadata,
-              draft: true,
-              tag_name: tagName,
-              name: tagName
-            });
-            releaseMetadata.release_id = createdRelease.data.id;
+      - name: Install Linux
+        if: contains(matrix.component.os, 'ubuntu')
+        run: |
+          debpath=$(find ./*.deb)
+          sudo apt install $debpath
 
-            // Uploads contents of directory to the release created above
-            async function uploadDirectoryToRelease(directory, includeExtensions=[]) {
-              return fs.promises.readdir(directory)
-                .then(async(files) => Promise.all(
-                  files.filter(file => {
-                    return includeExtensions.length==0 || includeExtensions.includes(path.extname(file).toLowerCase());
-                  })
-                  .map(async (file) => {
-                    var filePath = path.join(directory, file);
-                    github.repos.uploadReleaseAsset({
-                      ...releaseMetadata,
-                      name: file,
-                      headers: {
-                        "content-length": (await fs.promises.stat(filePath)).size
-                      },
-                      data: fs.createReadStream(filePath)
-                    });
-                  }))
-                );
-            }
-
-            await Promise.all([
-              // Upload Windows artifacts
-              uploadDirectoryToRelease('win-installer-x86_64', ['.exe']),
-              uploadDirectoryToRelease('win-portable-x86_64', ['.exe']),
-
-              // Upload Mac artifacts
-              uploadDirectoryToRelease('osx-dmg'),
-              uploadDirectoryToRelease('osx-pkg'),
-
-              // Upload Ubuntu artifacts
-              uploadDirectoryToRelease('deb-package')
-            ]);
+      - name: Install macOS
+        if: contains(matrix.component.os, 'macos')
+        run: |
+          # Only validate x64, given arm64 agents are not available
+          pkgpath=$(find ./*.pkg)
+          sudo installer -pkg $pkgpath -target /
+      
+      - name: Validate
+        shell: sh
+        run: |
+          git version >actual
+          echo 2.37.1.vfs.0.6 >expect
+          cmp expect actual || exit 1
