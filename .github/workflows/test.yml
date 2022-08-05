@@ -1,0 +1,32 @@
+name: build-git-installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release Id'
+        required: true
+        default: 'latest'
+
+jobs:
+  test-repo-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Get Release Asset"
+        env:
+          RELEASE: ${{ github.event.inputs.release }}
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+              console.log(context.repo.owner)
+              console.log(context.repo.repo)
+              const { data } = await github.repos.getRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: process.env.RELEASE || 'latest'
+              })
+              const assets = data.assets.filter(asset => asset.name.endsWith('.deb'))
+              for (const asset of assets) {
+                console.log(asset)
+              }
