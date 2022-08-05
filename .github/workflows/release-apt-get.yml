@@ -69,6 +69,9 @@ jobs:
                 release_id: process.env.RELEASE || 'latest'
               })
             const assets = data.assets.filter(asset => asset.name.endsWith('.deb'))
+            for (const asset of assets) {
+              console.log(`asset: ${asset}`)
+            }
             if (assets.length !== 1) {
               throw new Error(`Unexpected number of .deb assets: ${assets.length}`)
             }
@@ -84,9 +87,3 @@ jobs:
             console.log(buffer)
             fs.writeFileSync(assets[0].name, Buffer.from(buffer.data))
             core.setOutput('name', assets[0].name)
-
-      - name: "Publish to apt feed"
-        env:
-          RELEASE: ${{ github.event.inputs.release }}
-        run: |
-          repoclient -v v3 -c config.json package add --check --wait 300 ${{steps.get-asset.outputs.name}} -r ${{ secrets.HIRSUTE_REPO_ID }}
