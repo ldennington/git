@@ -18,11 +18,11 @@ jobs:
         asset: /git-(.*)\.pkg/
         hash: sha256
         token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Update scalar Cask
-      uses: mjcheetham/update-homebrew@v1.1
+    - name: Update Microsoft Git Cask
+      uses: mjcheetham/update-homebrew@v1.2
       with:
         token: ${{ secrets.HOMEBREW_TOKEN }}
-        tap: microsoft/git
+        tap: ldennington/homebrew-git
         name: microsoft-git
         type: cask
         version: ${{ steps.version.outputs.result }}
