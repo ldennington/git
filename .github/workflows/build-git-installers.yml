@@ -698,7 +698,7 @@ jobs:
 
       - name: Install Windows
         if: contains(matrix.component.os, 'windows')
-        shell: sh
+        shell: pws
         run: |
           exePaths=$(find ./*.exe) &&
           start "" "$path" /WAIT //VERYSILENT //NORESTART
