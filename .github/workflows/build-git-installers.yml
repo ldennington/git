@@ -684,10 +684,13 @@ jobs:
         component:
           - os: ubuntu-latest
             artifact: deb-package-signed
+            command: git
           - os: macos-latest
             artifact: osx-signed-pkg
+            command: git
           - os: windows-latest
             artifact: win-installer-x86_64
+            command: $PROGRAMFILES\Git\cmd\git.exe
     runs-on: ${{ matrix.component.os }}
     needs: [prereqs, windows_artifacts, osx_publish_dmg, ubuntu_sign-artifacts]
     steps:
@@ -698,10 +701,10 @@ jobs:
 
       - name: Install Windows
         if: contains(matrix.component.os, 'windows')
-        shell: pws
+        shell: pwsh
         run: |
-          exePaths=$(find ./*.exe) &&
-          start "" "$path" /WAIT //VERYSILENT //NORESTART
+          $exePath = Get-ChildItem -Path ./*.exe | %{$_.FullName}
+          Start-Process -Wait -FilePath "$exePath" -ArgumentList "/SILENT /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /ALLOWDOWNGRADE=1"
 
       - name: Install Linux
         if: contains(matrix.component.os, 'ubuntu')
@@ -712,13 +715,12 @@ jobs:
       - name: Install macOS
         if: contains(matrix.component.os, 'macos')
         run: |
-          # Only validate x64, given arm64 agents are not available
           pkgpath=$(find ./*.pkg)
           sudo installer -pkg $pkgpath -target /
       
       - name: Validate
-        shell: sh
+        shell: bash
         run: |
-          git version >actual
-          echo 2.37.1.vfs.0.6 >expect
+          "${{ matrix.component.command }}" --version | sed 's/git version //' >actual
+          echo 2.37.1.vfs.0.1 >expect
           cmp expect actual || exit 1
