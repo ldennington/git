@@ -19,9 +19,12 @@ jobs:
 
           # Download and run wingetcreate
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+        shell: powershell
+    
+      - name: Publish to test repo
+        run: |
           # Point to test repo
           $file = "$env:LOCALAPPDATA\Microsoft\WindowsPackageManagerManifestCreator\settings.json"
           $regex = 'microsoft'
           (Get-Content $file) -replace $regex, 'ldennington' | Set-Content $file
           .\wingetcreate.exe update Microsoft.Git -u $asset.browser_download_url -v $version -o manifests -t "${{ secrets.WINGET_TOKEN }}" -s
-        shell: powershell
