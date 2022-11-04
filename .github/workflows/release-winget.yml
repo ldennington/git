@@ -19,6 +19,9 @@ jobs:
 
           # Download and run wingetcreate
           Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+          # Install wingetcreate
+          winget install wingetcreate
         shell: powershell
     
       - name: Publish to test repo
