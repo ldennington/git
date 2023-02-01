@@ -38,3 +38,7 @@ jobs:
           $manifestDirectory = Split-Path "$manifestPath"
           .\wingetcreate.exe submit -t "${{ secrets.WINGET_TOKEN }}" $manifestDirectory
         shell: powershell
+
+      - name: action-tmate
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
