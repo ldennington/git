@@ -2,6 +2,13 @@ name: "release-winget"
 on:
   release:
     types: [released]
+  
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release Id'
+        required: true
+        default: 'latest'
 
 jobs:
   release:
