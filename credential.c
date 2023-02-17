@@ -236,6 +236,7 @@ int credential_read(struct credential *c, FILE *fp)
 			free(c->path);
 			c->path = xstrdup(value);
 		} else if (!strcmp(key, "password_expiry_utc")) {
+			errno = 0;
 			c->password_expiry_utc = parse_timestamp(value, NULL, 10);
 			if (c->password_expiry_utc == 0 || errno)
 				c->password_expiry_utc = TIME_MAX;
