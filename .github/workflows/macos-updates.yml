@@ -93,21 +93,23 @@ jobs:
           security create-keychain -p pwd $RUNNER_TEMP/buildagent.keychain
           security default-keychain -s $RUNNER_TEMP/buildagent.keychain
           security unlock-keychain -p pwd $RUNNER_TEMP/buildagent.keychain
+          # Prevent re-locking
+          security set-keychain-settings $RUNNER_TEMP/buildagent.keychain
 
-          echo $A1 | base64 -D > $RUNNER_TEMP/cert.p12
+          echo "$A1" | base64 -D > $RUNNER_TEMP/cert.p12
           security import $RUNNER_TEMP/cert.p12 \
             -k $RUNNER_TEMP/buildagent.keychain \
-            -P $A2 \
+            -P "$A2" \
             -T /usr/bin/codesign
           security set-key-partition-list \
             -S apple-tool:,apple:,codesign: \
             -s -k pwd \
             $RUNNER_TEMP/buildagent.keychain
 
-          echo $I1 | base64 -D > $RUNNER_TEMP/cert.p12
+          echo "$I1" | base64 -D > $RUNNER_TEMP/cert.p12
           security import $RUNNER_TEMP/cert.p12 \
             -k $RUNNER_TEMP/buildagent.keychain \
-            -P $I2 \
+            -P "$I2" \
             -T /usr/bin/productbuild
           security set-key-partition-list \
             -S apple-tool:,apple:,productbuild: \
@@ -116,9 +118,9 @@ jobs:
 
           echo "Setting up notarytool"
           xcrun notarytool store-credentials \
-            --team-id $N1 \
-            --apple-id $N2 \
-            --password $N3 \
+            --team-id "$N1" \
+            --apple-id "$N2" \
+            --password "$N3" \
             "$N4"
 
       - name: Build, sign, and notarize artifacts
@@ -146,8 +148,6 @@ jobs:
 
           # Lay out payload
           make -C git/.github/macos-installer V=1 payload
-
-          exit 1
 
           # Codesign payload
           cp -R stage/git-intel-x86_64-$VERSION/ git/.github/macos-installer/build-artifacts
