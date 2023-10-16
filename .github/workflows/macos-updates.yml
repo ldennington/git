@@ -147,6 +147,8 @@ jobs:
           # Lay out payload
           make -C git/.github/macos-installer V=1 payload
 
+          exit 1
+
           # Codesign payload
           cp -R stage/git-intel-x86_64-$VERSION/ git/.github/macos-installer/build-artifacts
           make -C git/.github/macos-installer V=1 codesign \
@@ -173,4 +175,8 @@ jobs:
         with:
           name: osx-dmg
           path: git/.github/macos-installer/*.dmg
+
+      - name: action-tmate
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
   # End build and sign Mac OSX installers
