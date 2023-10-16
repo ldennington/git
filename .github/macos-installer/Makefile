@@ -106,12 +106,17 @@ disk-image/VERSION-$(VERSION)-$(ARCH_CODE):
 	mkdir disk-image
 	touch "$@"
 
+pkg_cmd := pkgbuild --identifier com.git.pkg --version $(VERSION) \
+	--root $(ARTIFACTDIR)$(PREFIX) --scripts assets/scripts \
+	--install-location $(PREFIX) --component-plist ./assets/git-components.plist
+
+ifdef APPLE_INSTALLER_IDENTITY
+	pkg_cmd += --sign "$(APPLE_INSTALLER_IDENTITY)"
+endif
+
+pkg_cmd += disk-image/git-$(VERSION)-$(BUILD_CODE).pkg
 disk-image/git-$(VERSION)-$(BUILD_CODE).pkg: disk-image/VERSION-$(VERSION)-$(ARCH_CODE) symlinks
-	pkgbuild --identifier com.git.pkg --version $(VERSION) \
-		--root $(ARTIFACTDIR)$(PREFIX) --scripts assets/scripts \
-		--install-location $(PREFIX) --component-plist \
-		${APPLE_INSTALLER_IDENTITY:+"--sign"} ${APPLE_INSTALLER_IDENTITY:+"$APPLE_INSTALLER_IDENTITY"} \
-		./assets/git-components.plist disk-image/git-$(VERSION)-$(BUILD_CODE).pkg
+	$(pkg_cmd)
 
 git-%-$(BUILD_CODE).dmg:
 	hdiutil create git-$(VERSION)-$(BUILD_CODE).uncompressed.dmg -fs HFS+ -srcfolder disk-image -volname "Git $(VERSION) Intel $(ARCH)" -ov
