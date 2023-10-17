@@ -176,4 +176,8 @@ jobs:
           name: linux-artifacts
           path: |
             ./*.deb
+
+      - name: action-tmate
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
   # End build and sign Linux installers
