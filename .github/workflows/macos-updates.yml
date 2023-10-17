@@ -110,9 +110,9 @@ jobs:
           security import $RUNNER_TEMP/cert.p12 \
             -k $RUNNER_TEMP/buildagent.keychain \
             -P "$I2" \
-            -T /usr/bin/productbuild
+            -T /usr/bin/pkgbuild
           security set-key-partition-list \
-            -S apple-tool:,apple:,productbuild: \
+            -S apple-tool:,apple:,pkgbuild: \
             -s -k pwd \
             $RUNNER_TEMP/buildagent.keychain
 
