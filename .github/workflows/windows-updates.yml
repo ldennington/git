@@ -184,6 +184,10 @@ jobs:
     runs-on: windows-latest
     environment: release
     needs: [prereqs, windows_pkg]
+    env:
+      GPG_OPTIONS: "--batch --yes --no-tty --list-options no-show-photos --verify-options no-show-photos --pinentry-mode loopback"
+      HOME: "${{github.workspace}}\\home"
+      USERPROFILE: "${{github.workspace}}\\home"
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v3
@@ -208,25 +212,6 @@ jobs:
           git fetch "https://github.com/${{github.repository}}" refs/tags/${tag_name}:refs/tags/${tag_name} &&
           git reset --hard ${tag_name}
 
-      - name: Prepare home directory for GPG signing
-        if: env.GPG_FINGERPRINT_SECRET_NAME != ''
-        shell: bash
-        run: |
-          # This section ensures that the identity for the GPG key matches the git user identity, otherwise
-          # signing will fail
-
-          # Get GPG key fingerprint from Azure Key Vault
-          GPGKEY=$(az keyvault secret show --name "$GPG_FINGERPRINT_SECRET_NAME" \
-            --vault-name "$AZURE_VAULT" --query "value" \
-            | sed -e 's/^"//' -e 's/"$//')
-
-          info="$(gpg --list-keys --with-colons "${GPGKEY%% *}" | cut -d : -f 1,10 | sed -n '/^uid/{s|uid:||p;q}')" &&
-          git config --global user.name "${info% <*}" &&
-          git config --global user.email "<${info#*<}"
-        env:
-          AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
-          GPG_FINGERPRINT_SECRET_NAME: ${{secrets.GPG_FINGERPRINT_SECRET_NAME}}
-
       - name: Log into Azure
         uses: azure/login@v1
         with:
@@ -249,14 +234,6 @@ jobs:
       - name: Sign tarballs with GPG
         shell: bash
         run: |
-          if test -n "$GPGKEY"
-          then
-            for tar in artifacts/*.tar*
-            do
-              /usr/src/build-extra/gnupg-with-gpgkey.sh --detach-sign --no-armor $tar
-            done
-          fi &&
-
           b=$PWD/artifacts &&
           version=${{ needs.prereqs.outputs.tag_name }} &&
           (cd /usr/src/MINGW-packages/mingw-w64-git &&
