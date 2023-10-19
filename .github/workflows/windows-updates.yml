@@ -208,6 +208,39 @@ jobs:
           git fetch "https://github.com/${{github.repository}}" refs/tags/${tag_name}:refs/tags/${tag_name} &&
           git reset --hard ${tag_name}
 
+      - name: Log into Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Prepare for GPG signing
+        env:
+          AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
+          GPG_KEY_SECRET_NAME: ${{ secrets.GPG_KEY_SECRET_NAME }}
+          GPG_PASSPHRASE_SECRET_NAME: ${{ secrets.GPG_PASSPHRASE_SECRET_NAME }}
+          GPG_KEYGRIP_SECRET_NAME: ${{ secrets.GPG_KEYGRIP_SECRET_NAME }}
+        shell: bash
+        run: |
+          # Download GPG key, passphrase, and keygrip from Azure Key Vault
+          key=$(az keyvault secret show --name $GPG_KEY_SECRET_NAME --vault-name $AZURE_VAULT --query "value")
+          passphrase=$(az keyvault secret show --name $GPG_PASSPHRASE_SECRET_NAME --vault-name $AZURE_VAULT --query "value")
+          keygrip=$(az keyvault secret show --name $GPG_KEYGRIP_SECRET_NAME --vault-name $AZURE_VAULT --query "value")
+
+          # Remove quotes from downloaded values
+          key=$(sed -e 's/^"//' -e 's/"$//' <<<"$key")
+          passphrase=$(sed -e 's/^"//' -e 's/"$//' <<<"$passphrase")
+          keygrip=$(sed -e 's/^"//' -e 's/"$//' <<<"$keygrip")
+
+          # Import GPG key
+          echo "$key" | base64 -d | gpg $GPG_OPTIONS --import
+
+          # Configure GPG
+          echo "allow-preset-passphrase" > ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent RELOADAGENT /bye
+          gpg-connect-agent 'PRESET_PASSPHRASE "$keygrip" -1 "$passphrase"' /bye
+
       - name: Prepare home directory for GPG signing
         if: env.GPG_FINGERPRINT_SECRET_NAME != ''
         shell: bash
@@ -226,13 +259,6 @@ jobs:
         env:
           AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
           GPG_FINGERPRINT_SECRET_NAME: ${{secrets.GPG_FINGERPRINT_SECRET_NAME}}
-
-      - name: Log into Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign payload files with Azure Code Signing
         uses: azure/azure-code-signing-action@v0.2.21
