@@ -175,7 +175,7 @@ jobs:
           sh -x /usr/src/build-extra/please.sh build-mingw-w64-git --only-64-bit --build-src-pkg -o artifacts HEAD
 
       - name: Sign payload files with Azure Code Signing
-        uses: azure/azure-code-signing-action@v0.2.21
+        uses: azure/azure-code-signing-action@v0.2.24
         with:
           endpoint: https://wus2.codesigning.azure.net/
           code-signing-account-name: git-fundamentals-signing
