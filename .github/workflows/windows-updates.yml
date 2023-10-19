@@ -180,7 +180,7 @@ jobs:
           endpoint: https://wus2.codesigning.azure.net/
           code-signing-account-name: git-fundamentals-signing
           certificate-profile-name: git-fundamentals-windows-signing
-          files-folder: ${{ github.workspace }}\artifacts
+          files-folder: artifacts
           files-folder-filter: exe,dll
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
@@ -209,8 +209,4 @@ jobs:
         with:
           name: pkg-x86_64
           path: artifacts
-
-      - name: action-tmate
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
   # End build Windows installers
