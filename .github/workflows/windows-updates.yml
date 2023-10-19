@@ -208,6 +208,13 @@ jobs:
           git fetch "https://github.com/${{github.repository}}" refs/tags/${tag_name}:refs/tags/${tag_name} &&
           git reset --hard ${tag_name}
 
+      - name: Log into Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Prepare home directory for GPG signing
         if: env.GPG_FINGERPRINT_SECRET_NAME != ''
         shell: bash
@@ -226,13 +233,6 @@ jobs:
         env:
           AZURE_VAULT: ${{ secrets.AZURE_VAULT }}
           GPG_FINGERPRINT_SECRET_NAME: ${{secrets.GPG_FINGERPRINT_SECRET_NAME}}
-
-      - name: Log into Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign payload files with Azure Code Signing
         uses: azure/azure-code-signing-action@v0.2.21
