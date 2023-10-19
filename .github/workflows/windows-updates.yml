@@ -175,6 +175,7 @@ jobs:
           sh -x /usr/src/build-extra/please.sh build-mingw-w64-git --only-64-bit --build-src-pkg -o artifacts HEAD
 
       - name: Sign payload files with Azure Code Signing
+        shell: pwsh
         uses: azure/azure-code-signing-action@v0.2.21
         with:
           endpoint: https://wus2.codesigning.azure.net/
@@ -209,8 +210,4 @@ jobs:
         with:
           name: pkg-x86_64
           path: artifacts
-
-      - name: action-tmate
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
   # End build Windows installers
