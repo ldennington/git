@@ -1,0 +1,31 @@
+name: bare-bones
+
+on: push
+
+jobs:
+  # Build and sign Windows installers & upload artifacts
+  windows_pkg:
+    runs-on: windows-2019
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log into Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure and Run Azure Code Signing
+        shell: bash
+        run: |
+          git config alias.signtool '!f() { printf "%s\n" "$@" >./catalog && cat ./catalog && powershell -command "Invoke-AzureCodeSigning -Endpoint https://wus2.codesigning.azure.net/ -CodeSigningAccountName git-fundamentals-signing -CertificateProfileName git-fundamentals-windows-signing -FilesCatalog ./catalog -FileDigest SHA256 -TimestampRfc3161 http://timestamp.acs.microsoft.com -TimestampDigest SHA256"; };f'
+
+          # Install Azure Code Signing Module
+          /c/Windows/System32/WindowsPowerShell/v1.0/powershell -command "Install-Module -Name AzureCodeSigning -RequiredVersion 0.2.24 -Force -Repository PSGallery"
+          mkdir executables
+          cp /mingw64/bin/git.exe ./executables
+          git signtool ./executables/git.exe
+
+      - name: action-tmate
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
