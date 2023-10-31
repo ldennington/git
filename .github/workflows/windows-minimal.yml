@@ -1,10 +1,4 @@
 name: windows-minimal
-
-on:
-  push:
-    tags:
-      - 'v[0-9]*vfs*' # matches "v<number><any characters>vfs<any characters>"
-
 jobs:
   # Check prerequisites for the workflow
   prereqs:
